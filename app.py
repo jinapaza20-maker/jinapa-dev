@@ -109,29 +109,35 @@ with col2:
     </div>
     """, unsafe_allow_html=True)
 
-# ---------------- DETAIL CARDS ----------------
-html = ""
+# ---------------- DETAIL LIST (DELETE ENABLED) ----------------
+st.markdown("### 📋 Detail List")
 
-for _, r in df.iterrows():
+for idx, r in df.iterrows():
     color = "#8e44ad" if r["Day"] == "Saturday" else "#c0392b"
 
-    html += f"""
-    <div style="background:{color};padding:18px;border-radius:14px;margin-top:16px;color:white;">
-        <b>{r['Day']} | {r['Date']}</b><br><br>
-        <b>Group:</b> {r['Group']}<br>
-        <b>Area:</b> {r['Area']}<br>
-        <b>Inspector:</b> {r['Inspector']}<br><br>
+    with st.container():
+        st.markdown(
+            f"""
+            <div style="background:{color};padding:18px;border-radius:14px;color:white;">
+                <b>{r['Day']} | {r['Date']}</b><br><br>
+                <b>Group:</b> {r['Group']}<br>
+                <b>Area:</b> {r['Area']}<br>
+                <b>Inspector:</b> {r['Inspector']}<br><br>
 
-        📞 <a href="tel:{r['Phone']}" style="color:white;text-decoration:none;">
-            {r['Phone']}
-        </a><br>
+                📞 <a href="tel:{r['Phone']}" style="color:white;text-decoration:none;">
+                    {r['Phone']}
+                </a><br>
 
-        💬 <a href="https://line.me/ti/p/~{r['LINE']}"
-             target="_blank"
-             style="color:white;text-decoration:none;">
-            {r['LINE']}
-        </a>
-    </div>
-    """
+                💬 <a href="https://line.me/ti/p/~{r['LINE']}"
+                     target="_blank"
+                     style="color:white;text-decoration:none;">
+                    {r['LINE']}
+                </a>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
-components.html(html, height=600, scrolling=True)
+        col1, _ = st.columns([1, 5])
+        with col1:
+            if st.button("🗑 ลบ", key=f"delete_{idx}"):
