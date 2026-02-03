@@ -55,3 +55,82 @@ if st.button("💾 Save", disabled=not allowed):
 
     except Exception as e:
         st.error(f"❌ Error: {e}")
+# ---------- Summary ----------
+st.markdown("---")
+st.markdown("## 📊 Summary")
+
+# 🔹 นับจำนวนคน
+sat_count = len(df[df["Day"] == "Saturday"])
+sun_count = len(df[df["Day"] == "Sunday"])
+
+# 🔹 กล่องสรุป 2 ช่อง
+col1, col2 = st.columns(2)
+
+with col1:
+    st.markdown(f"""
+    <div style="
+        background:#8e44ad;
+        padding:18px;
+        border-radius:16px;
+        color:white;
+        text-align:center;
+        font-weight:bold;
+    ">
+        Saturday<br>
+        <span style="font-size:32px;">{sat_count}</span><br>
+        people
+    </div>
+    """, unsafe_allow_html=True)
+
+with col2:
+    st.markdown(f"""
+    <div style="
+        background:#c0392b;
+        padding:18px;
+        border-radius:16px;
+        color:white;
+        text-align:center;
+        font-weight:bold;
+    ">
+        Sunday<br>
+        <span style="font-size:32px;">{sun_count}</span><br>
+        people
+    </div>
+    """, unsafe_allow_html=True)
+
+# 🔹 การ์ดรายละเอียดรายคน
+import streamlit.components.v1 as components
+
+html = ""
+
+for _, r in df.iterrows():
+    color = "#8e44ad" if r["Day"] == "Saturday" else "#c0392b"
+
+    html += f"""
+    <div style="
+        background:{color};
+        padding:16px;
+        border-radius:14px;
+        margin-top:14px;
+        color:white;
+        font-family:Arial;
+    ">
+        <b>{r['Day']} | {r['Date']}</b><br><br>
+
+        <b>Group:</b> {r['Group']}<br>
+        <b>Area:</b> {r['Area']}<br>
+        <b>Inspector:</b> {r['Inspector']}<br><br>
+
+        📞 <a href="tel:{r['Phone']}" style="color:white;text-decoration:none;">
+            {r['Phone']}
+        </a><br>
+
+        💬 <a href="https://line.me/ti/p/~{r['LINE']}" target="_blank"
+             style="color:white;text-decoration:none;">
+            {r['LINE']}
+        </a>
+    </div>
+    """
+
+components.html(html, height=600, scrolling=True)
+# =================================================
