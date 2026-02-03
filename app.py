@@ -109,8 +109,6 @@ with col2:
     </div>
     """, unsafe_allow_html=True)
 # ---------------- DETAIL LIST (DELETE ENABLED) ----------------
-
-# ---------------- DETAIL LIST ----------------
 import streamlit.components.v1 as components
 
 st.markdown("### 📋 Detail List")
@@ -118,35 +116,41 @@ st.markdown("### 📋 Detail List")
 for idx, r in df.iterrows():
     color = "#8e44ad" if r["Day"] == "Saturday" else "#c0392b"
 
-    card_html = f"""
-    <div style="background:{color};
+    with st.container():
+        # ใช้ columns เพื่อให้ปุ่มลบอยู่ในกรอบ
+        left, right = st.columns([5, 1])
+
+        with left:
+            card_html = f"""
+            <div style="
+                background:{color};
                 padding:18px;
                 border-radius:14px;
-                margin-top:16px;
-                color:white;">
-        <b>{r['Day']} | {r['Date']}</b><br><br>
-        <b>Group:</b> {r['Group']}<br>
-        <b>Area:</b> {r['Area']}<br>
-        <b>Inspector:</b> {r['Inspector']}<br><br>
+                color:white;
+                min-height:160px;
+            ">
+                <b>{r['Day']} | {r['Date']}</b><br><br>
+                <b>Group:</b> {r['Group']}<br>
+                <b>Area:</b> {r['Area']}<br>
+                <b>Inspector:</b> {r['Inspector']}<br><br>
 
-        📞 <a href="tel:{r['Phone']}"
-             style="color:white;text-decoration:none;">
-            {r['Phone']}
-        </a><br>
+                📞 <a href="tel:{r['Phone']}"
+                     style="color:white;text-decoration:none;">
+                    {r['Phone']}
+                </a><br>
 
-        💬 <a href="https://line.me/ti/p/~{r['LINE']}"
-             target="_blank"
-             style="color:white;text-decoration:none;">
-            {r['LINE']}
-        </a>
-    </div>
-    """
+                💬 <a href="https://line.me/ti/p/~{r['LINE']}"
+                     target="_blank"
+                     style="color:white;text-decoration:none;">
+                    {r['LINE']}
+                </a>
+            </div>
+            """
+            components.html(card_html, height=200)
 
-    components.html(card_html, height=230)
-
-    col1, _ = st.columns([1, 5])
-    with col1:
-        if st.button("🗑 ลบ", key=f"delete_{idx}"):
-            df = df.drop(idx).reset_index(drop=True)
-            df.to_excel(FILE_PATH, index=False)
-            st.rerun()
+        with right:
+            st.markdown("<br><br>", unsafe_allow_html=True)
+            if st.button("🗑 ลบ", key=f"delete_{idx}"):
+                df = df.drop(idx).reset_index(drop=True)
+                df.to_excel(FILE_PATH, index=False)
+                st.rerun()
