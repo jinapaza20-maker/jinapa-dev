@@ -61,7 +61,7 @@ if st.button("💾 Save", disabled=not allowed):
     df.to_excel(FILE_PATH, index=False)
 
     # 2️⃣ Send to Power Automate
-    POWER_AUTOMATE_URL = "https://default19f2582317ff421fad4e8fed035aed.da.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/e14910468fc44cdb93d9fd9e851c04af/triggers/manual/paths/invoke?api-version=1"
+    POWER_AUTOMATE_URL ="https://default19f2582317ff421fad4e8fed035aed.da.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/e14910468fc44cdb93d9fd9e851c04af/triggers/manual/paths/invoke?api-version=1"
 
     try:
         res = requests.post(
