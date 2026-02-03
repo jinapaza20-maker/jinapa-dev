@@ -58,3 +58,40 @@ if st.button("💾 Save", disabled=not allowed):
 
     except Exception as e:
         st.error(f"❌ ส่งข้อมูลไม่สำเร็จ : {e}")
+# ---------- Summary ----------
+st.markdown("---")
+st.markdown("## 📊 Summary")
+ 
+html = ""
+ 
+for _, r in df.iterrows():
+    color = "#8e44ad" if r["Day"] == "Saturday" else "#c0392b"
+ 
+    html += f"""
+<div style="
+    background:{color};
+    padding:18px;
+    border-radius:14px;
+    margin-bottom:16px;
+    color:white;
+    font-family:Arial;
+">
+<b>{r['Day']} | {r['Date']}</b><br><br>
+
+        <b>Group:</b> {r['Group']}<br>
+<b>Area:</b> {r['Area']}<br>
+<b>Inspector:</b> {r['Inspector']}<br><br>
+ 
+        📞 <a href="tel:{r['Phone']}" 
+              style="color:white;text-decoration:none;">
+              {r['Phone']}
+</a><br>
+ 
+        💬 <a href="https://line.me/ti/p/~{r['LINE']}" 
+              target="_blank"
+              style="color:white;text-decoration:none;">
+              {r['LINE']}
+</a>
+</div>
+    """
+components.html(html, height=600, scrolling=True)
