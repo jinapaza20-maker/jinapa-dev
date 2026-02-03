@@ -1,82 +1,84 @@
 import streamlit as st
 import pandas as pd
-from datetime import date
 import os
+from datetime import datetime
+import streamlit.components.v1 as components
 
-st.set_page_config(page_title="Summary", layout="wide")
+# ---------------- Page Config ----------------
+st.set_page_config(page_title="Inspection App", layout="centered")
 
-# ======================
-# โหลด / สร้าง Excel
-# ======================
-FILE_NAME = "data.xlsx"
+FILE_PATH = "inspection_data.xlsx"
 
-if os.path.exists(FILE_NAME):
-    df = pd.read_excel(FILE_NAME)
+# ---------------- Load / Create Excel ----------------
+if os.path.exists(FILE_PATH):
+    df = pd.read_excel(FILE_PATH)
 else:
     df = pd.DataFrame(columns=[
-        "Day", "Date", "Group", "Area", "Inspector", "Phone", "User"
+        "Date", "Day", "Group", "Area",
+        "Inspector", "Phone", "LINE"
     ])
+    df.to_excel(FILE_PATH, index=False)
 
-# ======================
-# ฟอร์มบันทึกข้อมูล
-# ======================
-st.markdown("## 📝 บันทึกข้อมูล")
+# ---------------- UI : FORM ----------------
+st.markdown("## 📝 Inspection Form")
 
-with st.form("save_form"):
-    col1, col2 = st.columns(2)
+group = st.selectbox("Group", ["", "WG", "BP"])
 
-    with col1:
-        day = st.selectbox("Day", ["Saturday", "Sunday"])
-        group = st.text_input("Group")
-        area = st.text_input("Area")
+area_dict = {
+    "WG": ["WG1", "WG2", "WG3", "WG4"],
+    "BP": ["BP1", "BP2-3", "DET3-WH", "BP5", "BP8", "BP9"]
+}
+area = st.selectbox("Area", area_dict.get(group, []))
 
-    with col2:
-        work_date = st.date_input("Date", value=date.today())
-        inspector = st.text_input("Inspector")
-        phone = st.text_input("Phone")
-        user = st.text_input("User")
+date = st.date_input("Inspection Date")
+name = st.text_input("Inspector Name")
+phone = st.text_input("Phone")
+line = st.text_input("LINE ID")
 
-    submitted = st.form_submit_button("💾 บันทึกข้อมูล")
+# ---------------- Validation ----------------
+day_name = date.strftime("%A")
+allowed = day_name in ["Saturday", "Sunday"]
 
-    if submitted:
-        new_row = {
-            "Day": day,
-            "Date": work_date.strftime("%Y-%m-%d"),
-            "Group": group,
-            "Area": area,
-            "Inspector": inspector,
-            "Phone": phone,
-            "User": user
-        }
+if not allowed:
+    st.warning("❗ Inspection allowed only Saturday & Sunday")
 
-        df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-        df.to_excel(FILE_NAME, index=False)
+# ---------------- Save ----------------
+if st.button("💾 Save", disabled=not allowed):
+    new_row = {
+        "Date": date.strftime("%Y-%m-%d"),
+        "Day": day_name,
+        "Group": group,
+        "Area": area,
+        "Inspector": name,
+        "Phone": phone,
+        "LINE": line
+    }
 
-        st.success("✅ บันทึกข้อมูลเรียบร้อยแล้ว")
+    df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+    df.to_excel(FILE_PATH, index=False)
+    st.success("✅ บันทึกข้อมูลเรียบร้อย")
 
-# ======================
-# SUMMARY
-# ======================
+# ---------------- SUMMARY ----------------
 st.markdown("---")
 st.markdown("## 📊 Summary")
 
 sat_count = len(df[df["Day"] == "Saturday"])
 sun_count = len(df[df["Day"] == "Sunday"])
 
-# กล่อง Summary ด้านบน
 col1, col2 = st.columns(2)
 
 with col1:
     st.markdown(f"""
     <div style="
         background:#8e44ad;
-        color:white;
         padding:20px;
         border-radius:16px;
+        color:white;
         text-align:center;
-        font-size:20px;">
-        <b>Saturday</b><br>
-        <h1>{sat_count}</h1>
+        font-weight:bold;
+    ">
+        Saturday<br>
+        <span style="font-size:36px;">{sat_count}</span><br>
         people
     </div>
     """, unsafe_allow_html=True)
@@ -85,38 +87,48 @@ with col2:
     st.markdown(f"""
     <div style="
         background:#c0392b;
-        color:white;
         padding:20px;
         border-radius:16px;
+        color:white;
         text-align:center;
-        font-size:20px;">
-        <b>Sunday</b><br>
-        <h1>{sun_count}</h1>
+        font-weight:bold;
+    ">
+        Sunday<br>
+        <span style="font-size:36px;">{sun_count}</span><br>
         people
     </div>
     """, unsafe_allow_html=True)
 
-# ======================
-# DETAIL CARD
-# ======================
-st.markdown("<br>", unsafe_allow_html=True)
+# ---------------- DETAIL CARDS ----------------
+html = ""
 
 for _, r in df.iterrows():
     color = "#8e44ad" if r["Day"] == "Saturday" else "#c0392b"
 
-    st.markdown(f"""
+    html += f"""
     <div style="
         background:{color};
+        padding:18px;
+        border-radius:14px;
+        margin-top:16px;
         color:white;
-        padding:20px;
-        border-radius:16px;
-        margin-bottom:15px;">
-        
+        font-family:Arial;
+    ">
         <b>{r['Day']} | {r['Date']}</b><br><br>
-        Group: {r['Group']}<br>
-        Area: {r['Area']}<br>
-        Inspector: {r['Inspector']}<br><br>
-        📞 {r['Phone']}<br>
-        👤 {r['User']}
+
+        <b>Group:</b> {r['Group']}<br>
+        <b>Area:</b> {r['Area']}<br>
+        <b>Inspector:</b> {r['Inspector']}<br><br>
+
+        📞 <a href="tel:{r['Phone']}" style="color:white;text-decoration:none;">
+            {r['Phone']}
+        </a><br>
+
+        💬 <a href="https://line.me/ti/p/~{r['LINE']}" target="_blank"
+             style="color:white;text-decoration:none;">
+            {r['LINE']}
+        </a>
     </div>
-    """, unsafe_allow_html=True)
+    """
+
+components.html(html, height=600, scrolling=True)
