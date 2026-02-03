@@ -1,83 +1,82 @@
 import streamlit as st
-import requests
-from datetime import datetime
+import pandas as pd
+from datetime import date
+import os
 
-st.set_page_config(page_title="Inspection App", layout="centered")
+st.set_page_config(page_title="Summary", layout="wide")
 
-# ---------- UI ----------
-st.markdown("## 📝 Inspection Form")
+# ======================
+# โหลด / สร้าง Excel
+# ======================
+FILE_NAME = "data.xlsx"
 
-group = st.selectbox("Group", ["", "WG", "BP"])
+if os.path.exists(FILE_NAME):
+    df = pd.read_excel(FILE_NAME)
+else:
+    df = pd.DataFrame(columns=[
+        "Day", "Date", "Group", "Area", "Inspector", "Phone", "User"
+    ])
 
-area_dict = {
-    "WG": ["WG1", "WG2", "WG3", "WG4"],
-    "BP": ["BP1", "BP2-3", "DET3-WH", "BP5", "BP8", "BP9"]
-}
+# ======================
+# ฟอร์มบันทึกข้อมูล
+# ======================
+st.markdown("## 📝 บันทึกข้อมูล")
 
-area = st.selectbox("Area", area_dict.get(group, []))
+with st.form("save_form"):
+    col1, col2 = st.columns(2)
 
-date = st.date_input("Inspection Date")
-name = st.text_input("Inspector Name")
-phone = st.text_input("Phone")
-line = st.text_input("LINE ID")
+    with col1:
+        day = st.selectbox("Day", ["Saturday", "Sunday"])
+        group = st.text_input("Group")
+        area = st.text_input("Area")
 
-# ---------- Validation ----------
-day_name = date.strftime("%A")
-allowed = day_name in ["Saturday", "Sunday"]
+    with col2:
+        work_date = st.date_input("Date", value=date.today())
+        inspector = st.text_input("Inspector")
+        phone = st.text_input("Phone")
+        user = st.text_input("User")
 
-if not allowed:
-    st.warning("❗ Inspection allowed only Saturday & Sunday")
+    submitted = st.form_submit_button("💾 บันทึกข้อมูล")
 
-# ---------- Save ----------
-if st.button("💾 Save", disabled=not allowed):
+    if submitted:
+        new_row = {
+            "Day": day,
+            "Date": work_date.strftime("%Y-%m-%d"),
+            "Group": group,
+            "Area": area,
+            "Inspector": inspector,
+            "Phone": phone,
+            "User": user
+        }
 
-    payload = {
-        "Date": date.strftime("%Y-%m-%d"),
-        "Day": day_name,
-        "Group": group,
-        "Area": area,
-        "Inspector": name,
-        "Phone": phone,
-        "LINE": line
-    }
+        df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+        df.to_excel(FILE_NAME, index=False)
 
-    try:
-        res = requests.post(
-            "https://default19f2582317ff421fad4e8fed035aed.da.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/e14910468fc44cdb93d9fd9e851c04af/triggers/manual/paths/invoke?api-version=1",
-            json=payload,
-            timeout=15
-        )
+        st.success("✅ บันทึกข้อมูลเรียบร้อยแล้ว")
 
-        if res.status_code in [200, 202]:
-            st.success("✅ ส่งข้อมูลเรียบร้อยแล้ว")
-        else:
-            st.error(f"❌ ส่งไม่สำเร็จ ({res.status_code})")
-
-    except Exception as e:
-        st.error(f"❌ Error: {e}")
-# ---------- Summary ----------
+# ======================
+# SUMMARY
+# ======================
 st.markdown("---")
 st.markdown("## 📊 Summary")
 
-# 🔹 นับจำนวนคน
 sat_count = len(df[df["Day"] == "Saturday"])
 sun_count = len(df[df["Day"] == "Sunday"])
 
-# 🔹 กล่องสรุป 2 ช่อง
+# กล่อง Summary ด้านบน
 col1, col2 = st.columns(2)
 
 with col1:
     st.markdown(f"""
     <div style="
         background:#8e44ad;
-        padding:18px;
-        border-radius:16px;
         color:white;
+        padding:20px;
+        border-radius:16px;
         text-align:center;
-        font-weight:bold;
-    ">
-        Saturday<br>
-        <span style="font-size:32px;">{sat_count}</span><br>
+        font-size:20px;">
+        <b>Saturday</b><br>
+        <h1>{sat_count}</h1>
         people
     </div>
     """, unsafe_allow_html=True)
@@ -86,51 +85,38 @@ with col2:
     st.markdown(f"""
     <div style="
         background:#c0392b;
-        padding:18px;
-        border-radius:16px;
         color:white;
+        padding:20px;
+        border-radius:16px;
         text-align:center;
-        font-weight:bold;
-    ">
-        Sunday<br>
-        <span style="font-size:32px;">{sun_count}</span><br>
+        font-size:20px;">
+        <b>Sunday</b><br>
+        <h1>{sun_count}</h1>
         people
     </div>
     """, unsafe_allow_html=True)
 
-# 🔹 การ์ดรายละเอียดรายคน
-import streamlit.components.v1 as components
-
-html = ""
+# ======================
+# DETAIL CARD
+# ======================
+st.markdown("<br>", unsafe_allow_html=True)
 
 for _, r in df.iterrows():
     color = "#8e44ad" if r["Day"] == "Saturday" else "#c0392b"
 
-    html += f"""
+    st.markdown(f"""
     <div style="
         background:{color};
-        padding:16px;
-        border-radius:14px;
-        margin-top:14px;
         color:white;
-        font-family:Arial;
-    ">
+        padding:20px;
+        border-radius:16px;
+        margin-bottom:15px;">
+        
         <b>{r['Day']} | {r['Date']}</b><br><br>
-
-        <b>Group:</b> {r['Group']}<br>
-        <b>Area:</b> {r['Area']}<br>
-        <b>Inspector:</b> {r['Inspector']}<br><br>
-
-        📞 <a href="tel:{r['Phone']}" style="color:white;text-decoration:none;">
-            {r['Phone']}
-        </a><br>
-
-        💬 <a href="https://line.me/ti/p/~{r['LINE']}" target="_blank"
-             style="color:white;text-decoration:none;">
-            {r['LINE']}
-        </a>
+        Group: {r['Group']}<br>
+        Area: {r['Area']}<br>
+        Inspector: {r['Inspector']}<br><br>
+        📞 {r['Phone']}<br>
+        👤 {r['User']}
     </div>
-    """
-
-components.html(html, height=600, scrolling=True)
-# =================================================
+    """, unsafe_allow_html=True)
