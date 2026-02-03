@@ -3,11 +3,15 @@ import pandas as pd
 import os
 import streamlit.components.v1 as components
 from datetime import datetime
+import requests
 
 # ---------------- Page Config ----------------
 st.set_page_config(page_title="Inspection App", layout="centered")
 
 FILE_PATH = "inspection_data.xlsx"
+
+# 🔴 วางลิงก์จาก Power Automate ตรงนี้
+POWER_AUTOMATE_URL ="https://default19f2582317ff421fad4e8fed035aed.da.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/e14910468fc44cdb93d9fd9e851c04af/triggers/manual/paths/invoke?api-version=1"
 
 # ---------------- Load / Create Excel ----------------
 if os.path.exists(FILE_PATH):
@@ -55,10 +59,27 @@ if st.button("💾 Save", disabled=not allowed):
         "LINE": line
     }
 
+    # ✅ 1) Save to local Excel (ใช้ Summary)
     df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
     df.to_excel(FILE_PATH, index=False)
 
-    st.success("✅ บันทึกข้อมูลเรียบร้อย")
+    # ✅ 2) Send to Power Automate
+    try:
+        res = requests.post(
+            POWER_AUTOMATE_URL,
+            json=new_row,
+            headers={"Content-Type": "application/json"},
+            timeout=10
+        )
+
+        if res.status_code in [200, 202]:
+            st.success("✅ บันทึกและส่งข้อมูลเรียบร้อย")
+        else:
+            st.warning(f"⚠️ ส่ง Flow ไม่สำเร็จ ({res.status_code})")
+
+    except Exception as e:
+        st.warning(f"⚠️ ส่ง Flow error : {e}")
+
     st.rerun()
 
 # ---------------- SUMMARY ----------------
