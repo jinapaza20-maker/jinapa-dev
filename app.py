@@ -29,8 +29,8 @@ st.markdown("## 📝 Inspection Form")
 group = st.selectbox("Group", ["", "WG", "BP"])
 
 area_dict = {
-    "WG": ["WG1", "WG2", "WG3", "WG4"],
-    "BP": ["BP1", "BP2-3", "DET3-WH", "BP5", "BP8", "BP9"]
+    "WG": ["WG1", "WG2", "WG3", "WG5"],
+    "BP": ["BP1-DET3-WH", "BP2-3", "BP5-RD1", "BP8", "BP9"]
 }
 area = st.selectbox("Area", area_dict.get(group, []))
 
