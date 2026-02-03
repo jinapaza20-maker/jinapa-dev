@@ -1,9 +1,23 @@
 import streamlit as st
+import pandas as pd
+import os
+import streamlit.components.v1 as components
 from datetime import datetime
-import requests
 
 # ---------------- Page Config ----------------
 st.set_page_config(page_title="Inspection App", layout="centered")
+
+FILE_PATH = "inspection_data.xlsx"
+
+# ---------------- Load / Create Excel ----------------
+if os.path.exists(FILE_PATH):
+    df = pd.read_excel(FILE_PATH)
+else:
+    df = pd.DataFrame(columns=[
+        "Date", "Day", "Group", "Area",
+        "Inspector", "Phone", "LINE"
+    ])
+    df.to_excel(FILE_PATH, index=False)
 
 # ---------------- UI : FORM ----------------
 st.markdown("## 📝 Inspection Form")
@@ -31,7 +45,7 @@ if not allowed:
 # ---------------- Save ----------------
 if st.button("💾 Save", disabled=not allowed):
 
-    payload = {
+    new_row = {
         "Date": date.strftime("%Y-%m-%d"),
         "Day": day_name,
         "Group": group,
@@ -41,57 +55,62 @@ if st.button("💾 Save", disabled=not allowed):
         "LINE": line
     }
 
-    POWER_AUTOMATE_URL = "https://default19f2582317ff421fad4e8fed035aed.da.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/e14910468fc44cdb93d9fd9e851c04af/triggers/manual/paths/invoke?api-version=1"
+    df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+    df.to_excel(FILE_PATH, index=False)
 
-    try:
-        res = requests.post(
-            POWER_AUTOMATE_URL,
-            json=payload,
-            headers={"Content-Type": "application/json"},
-            timeout=10
-        )
+    st.success("✅ บันทึกข้อมูลเรียบร้อย")
+    st.rerun()
 
-        if res.status_code == 200:
-            st.success("✅ ส่งข้อมูลเรียบร้อย")
-        else:
-            st.error(f"❌ Flow ตอบกลับ {res.status_code}")
-
-    except Exception as e:
-        st.error(f"❌ ส่งข้อมูลไม่สำเร็จ : {e}")
-# ---------- Summary ----------
+# ---------------- SUMMARY ----------------
 st.markdown("---")
 st.markdown("## 📊 Summary")
- 
+
+sat_count = len(df[df["Day"] == "Saturday"])
+sun_count = len(df[df["Day"] == "Sunday"])
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.markdown(f"""
+    <div style="background:#8e44ad;padding:20px;border-radius:16px;color:white;text-align:center;font-weight:bold;">
+        Saturday<br>
+        <span style="font-size:36px;">{sat_count}</span><br>
+        people
+    </div>
+    """, unsafe_allow_html=True)
+
+with col2:
+    st.markdown(f"""
+    <div style="background:#c0392b;padding:20px;border-radius:16px;color:white;text-align:center;font-weight:bold;">
+        Sunday<br>
+        <span style="font-size:36px;">{sun_count}</span><br>
+        people
+    </div>
+    """, unsafe_allow_html=True)
+
+# ---------------- DETAIL CARDS ----------------
 html = ""
- 
+
 for _, r in df.iterrows():
     color = "#8e44ad" if r["Day"] == "Saturday" else "#c0392b"
- 
-    html += f"""
-<div style="
-    background:{color};
-    padding:18px;
-    border-radius:14px;
-    margin-bottom:16px;
-    color:white;
-    font-family:Arial;
-">
-<b>{r['Day']} | {r['Date']}</b><br><br>
 
+    html += f"""
+    <div style="background:{color};padding:18px;border-radius:14px;margin-top:16px;color:white;">
+        <b>{r['Day']} | {r['Date']}</b><br><br>
         <b>Group:</b> {r['Group']}<br>
-<b>Area:</b> {r['Area']}<br>
-<b>Inspector:</b> {r['Inspector']}<br><br>
- 
-        📞 <a href="tel:{r['Phone']}" 
-              style="color:white;text-decoration:none;">
-              {r['Phone']}
-</a><br>
- 
-        💬 <a href="https://line.me/ti/p/~{r['LINE']}" 
-              target="_blank"
-              style="color:white;text-decoration:none;">
-              {r['LINE']}
-</a>
-</div>
+        <b>Area:</b> {r['Area']}<br>
+        <b>Inspector:</b> {r['Inspector']}<br><br>
+
+        📞 <a href="tel:{r['Phone']}" style="color:white;text-decoration:none;">
+            {r['Phone']}
+        </a><br>
+
+        💬 <a href="https://line.me/ti/p/~{r['LINE']}"
+             target="_blank"
+             style="color:white;text-decoration:none;">
+            {r['LINE']}
+        </a>
+    </div>
     """
+
 components.html(html, height=600, scrolling=True)
