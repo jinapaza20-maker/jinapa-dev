@@ -3,6 +3,7 @@ import pandas as pd
 import os
 from datetime import datetime
 import streamlit.components.v1 as components
+import requests
 
 # ---------------- Page Config ----------------
 st.set_page_config(page_title="Inspection App", layout="centered")
@@ -44,6 +45,7 @@ if not allowed:
 
 # ---------------- Save ----------------
 if st.button("💾 Save", disabled=not allowed):
+
     new_row = {
         "Date": date.strftime("%Y-%m-%d"),
         "Day": day_name,
@@ -54,9 +56,30 @@ if st.button("💾 Save", disabled=not allowed):
         "LINE": line
     }
 
+    # 1️⃣ Save to Excel (เห็นผลทันที)
     df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
     df.to_excel(FILE_PATH, index=False)
-    st.success("✅ บันทึกข้อมูลเรียบร้อย")
+
+    # 2️⃣ Send to Power Automate
+    POWER_AUTOMATE_URL = "https://default19f2582317ff421fad4e8fed035aed.da.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/e14910468fc44cdb93d9fd9e851c04af/triggers/manual/paths/invoke?api-version=1"
+
+    try:
+        res = requests.post(
+            POWER_AUTOMATE_URL,
+            json=new_row,
+            timeout=10
+        )
+
+        if res.status_code == 200:
+            st.success("✅ บันทึกและส่งข้อมูลเรียบร้อย")
+        else:
+            st.warning(f"⚠️ บันทึกแล้ว แต่ส่ง Flow ไม่สำเร็จ ({res.status_code})")
+
+    except Exception as e:
+        st.warning(f"⚠️ บันทึกแล้ว แต่ส่ง Flow error : {e}")
+
+    # รีเฟรชหน้าเพื่อโหลดข้อมูลใหม่
+    st.rerun()
 
 # ---------------- SUMMARY ----------------
 st.markdown("---")
@@ -69,14 +92,7 @@ col1, col2 = st.columns(2)
 
 with col1:
     st.markdown(f"""
-    <div style="
-        background:#8e44ad;
-        padding:20px;
-        border-radius:16px;
-        color:white;
-        text-align:center;
-        font-weight:bold;
-    ">
+    <div style="background:#8e44ad;padding:20px;border-radius:16px;color:white;text-align:center;font-weight:bold;">
         Saturday<br>
         <span style="font-size:36px;">{sat_count}</span><br>
         people
@@ -85,14 +101,7 @@ with col1:
 
 with col2:
     st.markdown(f"""
-    <div style="
-        background:#c0392b;
-        padding:20px;
-        border-radius:16px;
-        color:white;
-        text-align:center;
-        font-weight:bold;
-    ">
+    <div style="background:#c0392b;padding:20px;border-radius:16px;color:white;text-align:center;font-weight:bold;">
         Sunday<br>
         <span style="font-size:36px;">{sun_count}</span><br>
         people
@@ -106,26 +115,13 @@ for _, r in df.iterrows():
     color = "#8e44ad" if r["Day"] == "Saturday" else "#c0392b"
 
     html += f"""
-    <div style="
-        background:{color};
-        padding:18px;
-        border-radius:14px;
-        margin-top:16px;
-        color:white;
-        font-family:Arial;
-    ">
+    <div style="background:{color};padding:18px;border-radius:14px;margin-top:16px;color:white;">
         <b>{r['Day']} | {r['Date']}</b><br><br>
-
         <b>Group:</b> {r['Group']}<br>
         <b>Area:</b> {r['Area']}<br>
         <b>Inspector:</b> {r['Inspector']}<br><br>
-
-        📞 <a href="tel:{r['Phone']}" style="color:white;text-decoration:none;">
-            {r['Phone']}
-        </a><br>
-
-        💬 <a href="https://line.me/ti/p/~{r['LINE']}" target="_blank"
-             style="color:white;text-decoration:none;">
+        📞 <a href="tel:{r['Phone']}" style="color:white;text-decoration:none;">{r['Phone']}</a><br>
+        💬 <a href="https://line.me/ti/p/~{r['LINE']}" target="_blank" style="color:white;text-decoration:none;">
             {r['LINE']}
         </a>
     </div>
