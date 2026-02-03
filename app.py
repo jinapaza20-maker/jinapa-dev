@@ -108,7 +108,6 @@ with col2:
         people
     </div>
     """, unsafe_allow_html=True)
-
 # ---------------- DETAIL LIST (DELETE ENABLED) ----------------
 st.markdown("### 📋 Detail List")
 
@@ -141,3 +140,8 @@ for idx, r in df.iterrows():
         col1, _ = st.columns([1, 5])
         with col1:
             if st.button("🗑 ลบ", key=f"delete_{idx}"):
+                df = df.drop(idx).reset_index(drop=True)
+                df.to_excel(FILE_PATH, index=False)
+                st.rerun()
+
+        st.markdown("---")
