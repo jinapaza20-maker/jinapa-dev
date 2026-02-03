@@ -7,18 +7,6 @@ import streamlit.components.v1 as components
  
 st.set_page_config(page_title="Inspection App", layout="centered")
  
-FILE_PATH = "inspection_data.xlsx"
- 
-# ---------- Load / Create Excel ----------
-if os.path.exists(FILE_PATH):
-    df = pd.read_excel(FILE_PATH)
-else:
-    df = pd.DataFrame(columns=[
-        "Date", "Day", "Group", "Area",
-        "Inspector", "Phone", "LINE"
-    ])
-    df.to_excel(FILE_PATH, index=False)
- 
 # ---------- UI ----------
 st.markdown("## 📝 Inspection Form")
  
@@ -45,8 +33,10 @@ if not allowed:
     st.warning("❗ Inspection allowed only Saturday & Sunday")
  
 # ---------- Save ----------
+import requests
+
 if st.button("💾 Save", disabled=not allowed):
-    new_row = {
+    payload = {
         "Date": date.strftime("%Y-%m-%d"),
         "Day": day_name,
         "Group": group,
@@ -55,18 +45,21 @@ if st.button("💾 Save", disabled=not allowed):
         "Phone": phone,
         "LINE": line
     }
-    df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-    df.to_excel(FILE_PATH, index=False)
-    st.success("Saved successfully ✅")
- 
-# ---------- Summary ----------
-st.markdown("---")
-st.markdown("## 📊 Summary")
- 
-html = ""
- 
-for _, r in df.iterrows():
-    color = "#8e44ad" if r["Day"] == "Saturday" else "#c0392b"
+
+    try:
+        res = requests.post(
+            "https://default19f2582317ff421fad4e8fed035aed.da.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/e14910468fc44cdb93d9fd9e851c04af/triggers/manual/paths/invoke?api-version=1",
+            json=payload,
+            timeout=10
+        )
+
+        if res.status_code == 200:
+            st.success("✅ บันทึกข้อมูลเรียบร้อย")
+        else:
+            st.error(f"❌ ส่งไม่สำเร็จ ({res.status_code})")
+
+    except Exception as e:
+        st.error(f"❌ Error: {e}")
  
     html += f"""
 <div style="
