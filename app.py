@@ -1,15 +1,10 @@
 import streamlit as st
-
 import pandas as pd
-
 import os
-
 import requests
-
 from datetime import datetime
- 
-# ================= 1. ฟังก์ชันส่ง LINE =================
 
+# ================= 1. ฟังก์ชันส่ง LINE =================
 def send_to_line(flex_json):
     TOKEN = "Op7JzHFY4SzJrxz6mjqVx9cAAk8uELFSt4bPoqiXW2LGqUbNCxHCnG6ClgU7WCE2Gwf82ww3lU23mVcEt9RDc6otB7PW4Y8Qu6P1sDmMsKCjIUBhhZsGhOt9nVDyw9G5T+Cn9/7Yng3FVG6bWhw4VQdB04t89/1O/w1cDnyilFU="
     url = "https://api.line.me/v2/bot/message/broadcast"
