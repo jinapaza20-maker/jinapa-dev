@@ -1,448 +1,303 @@
 import streamlit as st
-import pandas as pd
-import os
-import requests
-from datetime import datetime
 
-# ================= 1. DEFINE FUNCTIONS (ย้ายมาไว้ข้างบนสุด) =================
+import pandas as pd
+
+import os
+
+import requests
+
+from datetime import datetime
+ 
+# ================= 1. ฟังก์ชันส่ง LINE =================
 
 def send_to_line(flex_json):
-    CHANNEL_ACCESS_TOKEN ="Op7JzHFY4SzJrxz6mjqVx9cAAk8uELFSt4bPoqiXW2LGqUbNCxHCnG6ClgU7WCE2Gwf82ww3lU23mVcEt9RDc6otB7PW4Y8Qu6P1sDmMsKCjIUBhhZsGhOt9nVDyw9G5T+Cn9/7Yng3FVG6bWhw4VQdB04t89/1O/w1cDnyilFU="
+    TOKEN = "Op7JzHFY4SzJrxz6mjqVx9cAAk8uELFSt4bPoqiXW2LGqUbNCxHCnG6ClgU7WCE2Gwf82ww3lU23mVcEt9RDc6otB7PW4Y8Qu6P1sDmMsKCjIUBhhZsGhOt9nVDyw9G5T+Cn9/7Yng3FVG6bWhw4VQdB04t89/1O/w1cDnyilFU="
     url = "https://api.line.me/v2/bot/message/broadcast"
-    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {CHANNEL_ACCESS_TOKEN}"}
-    payload = {"messages": [{"type": "flex", "altText": "Inspection Summary", "contents": flex_json}]}
-    res = requests.post(url, headers=headers, json=payload)
-    return res.status_code, res.text
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {TOKEN}"
+    }
+    payload = {
+        "messages": [{
+            "type": "flex",
+            "altText": "Summary Week Report",
+            "contents": flex_json
+        }]
+    }
 
-# ================= 2. PAGE CONFIG & FILE SETUP =================
+    try:
+        res = requests.post(url, headers=headers, json=payload)
+        return res.status_code, res.text
+    except Exception as e:
+        return 500, str(e)
 
-st.set_page_config(page_title="Inspection App", layout="wide")
+
+def color_row_by_day(row):
+    day = row["Day"]
+    bg = WEEKDAY_COLORS.get(day, "#FFFFFF")
+    text_color = "#000000" if day == "Monday" else "#FFFFFF"
+    return [f"background-color: {bg}; color: {text_color}"] * len(row)
+
+
+WEEKDAY_COLORS = {
+    "Monday": "#FFD700",
+    "Tuesday": "#FF69B4",
+    "Wednesday": "#2E8B57",
+    "Thursday": "#FF8C00",
+    "Friday": "#1E90FF",
+    "Saturday": "#5E0B73",
+    "Sunday": "#B11226"
+}
+ 
+# ================= 2. ตั้งค่าระบบและโหลดข้อมูล =================
+
+st.set_page_config(
+    page_title="Vendor Inspection",
+    layout="wide"
+)
+
 FILE_PATH = "inspection_data.xlsx"
 
 if os.path.exists(FILE_PATH):
     df = pd.read_excel(FILE_PATH, dtype=str).fillna("")
 else:
-    df = pd.DataFrame(columns=["Date", "Day", "Group", "Area", "Safety", "Phone", "LINE"])
-    df.to_excel(FILE_PATH, index=False)
+    df = pd.DataFrame(columns=[
+        "Date", "Day", "Group", "Area", "Safety", "Phone", "LINE"
+    ])
 
-# ================= 3. FORM SECTION (ใช้ st.form เพื่อแก้ Error) =================
+# ================= 3. SIDEBAR =================
 
-st.markdown("## 📝 Inspection Form")
+with st.sidebar:
+    st.header("⚙️ ระบบจัดการ")
+    st.info("💡 วิธีลบข้อมูล: คลิกแถวในตาราง แล้วกดปุ่ม Delete บนคีย์บอร์ด")
+ 
+# ================= 4. ส่วนบันทึกข้อมูล =================
 
-# การใช้ st.form พร้อม clear_on_submit=True คือวิธีที่ Streamlit แนะนำเพื่อป้องกัน Error ที่คุณเจอ
+st.markdown("## 📝 บันทึกข้อมูลการตรวจ")
+
 with st.form("inspection_form", clear_on_submit=True):
-    group = st.selectbox("Group", ["", "WG", "BP"])
-    
-    area_dict = {
-        "WG": ["WG1", "WG2", "WG3", "WG5"],
-        "BP": ["BP1-DET3-WH", "BP2-3", "BP5-RD1", "BP8", "BP9"]
-    }
-    
-    # หมายเหตุ: ใน st.form ตัวแปร area จะเปลี่ยนตาม group ทันทีไม่ได้ (ต้องกด submit ก่อน) 
-    # ดังนั้นผมจะรวมพื้นที่ทั้งหมดให้เลือก หรือคุณสามารถเลือกกรอกเองได้
-    all_areas = [""] + area_dict["WG"] + area_dict["BP"]
-    area = st.selectbox("Area", all_areas)
-    
-    date = st.date_input("Inspection Date")
-    safety = st.text_input("Safety Name")
-    phone = st.text_input("Phone")
-    line = st.text_input("LINE ID")
 
-    day_name = date.strftime("%A")
-    allowed = day_name in ["Saturday", "Sunday"]
+    c1, c2, c3 = st.columns(3)
 
-    if not allowed:
-        st.warning("❗ บันทึกได้เฉพาะวันเสาร์–อาทิตย์")
+    with c1:
 
-    col_save, col_clear = st.columns([1, 5])
-    with col_save:
-        save_btn = st.form_submit_button("💾 Save", disabled=not allowed)
-    with col_clear:
-        # ปุ่มล้างฟอร์ม (ทำงานอัตโนมัติด้วย clear_on_submit)
-        st.form_submit_button("🧹 ล้างฟอร์ม")
+        group = st.selectbox("Group", ["", "WG", "BP"])
 
-# ================= 4. LOGIC AFTER SUBMIT =================
+        area = st.selectbox("Area", ["", "WG1", "WG2", "WG3", "WG5", "BP1-DET3-WH", "BP2-3", "BP5-RD1", "BP8", "BP9"])
 
-if save_btn:
-    if group == "" or area == "" or safety == "":
-        st.error("❌ กรุณากรอกข้อมูลให้ครบ (Group, Area, Safety)")
-    else:
-        new_row = {
-            "Date": date.strftime("%Y-%m-%d"),
-            "Day": day_name,
-            "Group": group,
-            "Area": area,
-            "Safety": safety,
-            "Phone": phone,
-            "LINE": line
-        }
-        df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-        df.to_excel(FILE_PATH, index=False)
-        st.success("✅ บันทึกเรียบร้อย และล้างฟอร์มแล้ว")
-        st.rerun()
-# ================= SUMMARY =================
-st.markdown("## 📊 Summary Week")
+    with c2:
 
-if not df.empty:
-    sat_date = df[df["Day"] == "Saturday"]["Date"].iloc[0] if "Saturday" in df["Day"].values else "-"
-    sun_date = df[df["Day"] == "Sunday"]["Date"].iloc[0] if "Sunday" in df["Day"].values else "-"
-else:
-    sat_date = sun_date = "-"
+        date_val = st.date_input("วันที่ตรวจ")
 
-col_left, col_right = st.columns(2)
+        safety = st.text_input("ชื่อ Safety")
 
-with col_left:
-    st.markdown(f"""
-    <div style="
-        background:#660066;
-        padding:32px;
-        border-radius:32px;
-        text-align:center;
-        color:white;
-        font-weight:bold;">
-        Saturday<br>
-        <span style="font-size:32px;">{sat_date}</span>
-    </div>
-    """, unsafe_allow_html=True)
+    with c3:
 
-with col_right:
-    st.markdown(f"""
-    <div style="
-        background:#B11226;
-        padding:32px;
-        border-radius:32px;
-        text-align:center;
-        color:white;
-        font-weight:bold;">
-        Sunday<br>
-        <span style="font-size:32px;">{sun_date}</span>
-    </div>
-    """, unsafe_allow_html=True)
+        phone = st.text_input("เบอร์โทร")
 
-# ================= DETAIL LIST =================
-st.markdown("## 📋 Detail List")
+        line_id = st.text_input("LINE ID")
 
-col_sat, col_sun = st.columns(2)
+    if st.form_submit_button("💾 บันทึกข้อมูล", use_container_width=True):
 
-for idx, r in df.iterrows():
+        if group and area and safety:
 
-    phone = r["Phone"].strip()
-    line_raw = r["LINE"].strip()
-    line_id = line_raw.replace("@", "") if line_raw else ""
+            new_row = {
 
+                "Date": date_val.strftime("%Y-%m-%d"), 
 
-    if r["Day"] == "Saturday":
-        bg_color = "#5E0B73"
-        target_col = col_sat
-    elif r["Day"] == "Sunday":
-        bg_color = "#B11226"
-        target_col = col_sun
-    else:
-        continue
+                "Day": date_val.strftime("%A"), 
 
-    with target_col:
-        st.markdown(
-            f"""
-            <div style="
-                background:{bg_color};
-                padding:20px;
-                border-radius:20px;
-                margin-bottom:12px;
-                color:white;
-                font-size:15px;
-                line-height:1.7;
-            ">
-                <b>Area:</b> {r['Area']}<br>
-                <b>Safety:</b> {r['Safety']}<br><br>
-📞 <a href="tel:{phone}"
-                    style="text-decoration:none; font-weight:bold; color:white;">
-                    โทร {phone}
-                </a><br>
+                "Group": group, "Area": area, "Safety": safety, 
 
-💬 <a href="https://line.me/R/ti/p/{line_id}"
-                    target="_blank"
-                    style="text-decoration:none; font-weight:bold; color:white;">
-                    LINE {line_id}
-                </a>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+                "Phone": phone.strip(), "LINE": line_id.strip()
 
-        if st.button("🗑 ลบรายการนี้", key=f"del_{idx}"):
-            df = df.drop(idx)
+            }
+
+            df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+
             df.to_excel(FILE_PATH, index=False)
+
             st.rerun()
+ 
+# ================= 5. ตารางข้อมูล (ลบรายแถวได้) =================
 
-# ================= COUNT SUMMARY =================
-sat_count = len(df[df["Day"] == "Saturday"])
-sun_count = len(df[df["Day"] == "Sunday"])
+st.subheader("📋 รายการข้อมูล (คลิกแถวแล้วกด Delete เพื่อลบ)")
 
+def color_row_by_day(row):
+    day = row["Day"]
+    bg = WEEKDAY_COLORS.get(day, "#FFFFFF")
+    text_color = "#000000" if day == "Monday" else "#FFFFFF"
+    return [f"background-color: {bg}; color: {text_color}"] * len(row)
 
-# ================= SUMMARY BUBBLE =================
-def summary_bubble(day, date, color):
-    return {
-        "type": "bubble",
-        "size": "mega",
-        "body": {
-            "type": "box",
-            "layout": "vertical",
-            "backgroundColor": color,
-            "paddingAll": "8px",
-            "cornerRadius": "8px",
-            "contents": [
-                {
-                    "type": "text",
-                    "text": day,
-                    "align": "center",
-                    "color": "#FFFFFF"
-                },
-                {
-                    "type": "text",
-                    "text": date,
-                    "align": "center",
-                    "size": "xl",
-                    "weight": "bold",
-                    "color": "#FFFFFF"
-                }
-            ]
-        }
-    }
+styled_df = df.style.apply(color_row_by_day, axis=1)
+
+edited_df = st.data_editor(
+    styled_df,
+    use_container_width=True,
+    num_rows="dynamic",
+    key="main_editor"
+)
 
 
-# ================= DETAIL BUBBLE =================
-def detail_bubble(row, color):
-    line_id = "" if pd.isna(row["LINE"]) else str(row["LINE"]).replace("@", "")
 
-    return {
-        "type": "box",
-        "layout": "vertical",
-        "spacing": "sm",
-        "contents": [
-            {"type": "text", "text": f"Area: {row['Area']}", "color": "#FFFFFF"},
-            {"type": "text", "text": f"Safety: {row['Safety']}", "color": "#FFFFFF"},
-            {"type": "text", "text": f"📞 {row['Phone']}", "color": "#FFFFFF"},
-            {"type": "text", "text": f"LINE: {line_id}", "color": "#FFFFFF"},
-        ]
-    }
+if not edited_df.equals(df):
 
+    edited_df.to_excel(FILE_PATH, index=False)
 
-# ================= BUILD CAROUSEL =================
-def build_carousel_from_df(df):
-    bubbles = []
+    st.rerun()
+ 
+# ================= 6. ส่วนส่ง LINE =================
 
-    for _, row in df.iterrows():
-        if row["Day"] == "Saturday":
-            color = "#5E0B73"
-            day_label = f"Saturday {row['Date']}"
-        elif row["Day"] == "Sunday":
-            color = "#B11226"
-            day_label = f"Sunday {row['Date']}"
-        else:
-            continue
+st.divider()
 
-        bubble = {
-            "type": "bubble",
-            "size": "mega",
-            "body": {
-                "type": "box",
-                "layout": "vertical",
-                "backgroundColor": color,
-                "paddingAll": "6px",
-                "cornerRadius": "8px",
-                "contents": [
-                    {
-                        "type": "text",
-                        "text": day_label,
-                        "weight": "bold",
-                        "align": "center",
-                        "color": "#FFFFFF",
-                        "size": "xs"
-                    },
-                    {"type": "separator", "margin": "sm"},
-                    detail_bubble(row, color)
-                ]
-            }
-        }
+st.subheader("📤 ส่งสรุปรายงานเข้า LINE")
 
-        bubbles.append(bubble)
+mode = st.radio("เลือกรูปแบบ:", ["ส่งข้อมูลวันนี้ (แถบยาว)", "ส่งสรุปเสาร์-อาทิตย์ (Summary Week)"], horizontal=True)
+ 
+if st.button("🚀 ยืนยันการส่ง LINE", use_container_width=True, type="primary"):
 
-    return {
-        "type": "carousel",
-        "contents": bubbles
-    }
+    if df.empty:
 
-# ================= SEND TO LINE =================
-st.markdown("## 📤 ส่งสรุปผลไป LINE OA")
+        st.warning("ไม่มีข้อมูล")
 
-if st.button("ส่ง Summary + Detail ไป LINE"):
-
-    sat_list = []
-    sun_list = []
-
-    for _, r in df.iterrows():
-
-        phone = str(r["Phone"]).strip()
-        line_raw = str(r["LINE"]).strip().replace("@", "")
-
-        # ===== ปุ่มไอค่อน =====
-        phone_btn = {
-            "type": "button",
-            "height": "sm",
-		"style": "primary",
-            "action": {
-                "type": "uri",
-                "label": "📞",
-                "uri": f"tel:{phone}"
-            }
-        } if phone else {"type": "filler"}
-
-        line_btn = {
-            "type": "button",
-            "height": "sm",
-		"style": "secondary",
-            "action": {
-                "type": "uri",
-                "label": "💬",
-                "uri": f"https://line.me/ti/p/~{line_raw}"
-
-            }
-        } if line_raw else {"type": "filler"}
-
-        # ===== กล่อง Detail (กรอบขาว) =====
-        detail_box = {
-            "type": "box",
-            "layout": "vertical",
-            "spacing": "xs",
-            "paddingAll": "10px",
-            "cornerRadius": "10px",
-            "backgroundColor": "#FFFFFF",
-            "contents": [
-                {
-                    "type": "text",
-                    "text": f"Area: {r['Area']}",
-                    "weight": "bold",
-                    "size": "xxs",
-                    "color": "#333333",
-                    "wrap": True
-                },
-                {
-                    "type": "text",
-                    "text": f"Safety: {r['Safety']}",
-                    "size": "xxs",
-                    "color": "#555555",
-                    "wrap": True
-                },
-                {
-                    "type": "box",
-                    "layout": "horizontal",
-                    "spacing": "xs", 
-                    "margin": "sm",
-                    "contents": [phone_btn, line_btn]
-                }
-            ]
-        }
-
-        if r["Day"] == "Saturday":
-            sat_list.append(detail_box)
-        elif r["Day"] == "Sunday":
-            sun_list.append(detail_box)
-
-    # ===== FLEX หลัก =====
-    flex_json = {
-        "type": "bubble",
-        "size": "giga",
-        "body": {
-            "type": "box",
-            "layout": "vertical",
-            "spacing": "md",
-		"paddingAll": "12px",
-		"backgroundColor": "#FFFFFF", 
-            "contents": [
-
-                {
-                    "type": "text",
-                    "text": "📊 Summary Week",
-                    "weight": "bold",
-                    "size": "sm"
-                },
-
-                {
-                    "type": "box",
-                    "layout": "horizontal",
-                    "spacing": "sm",
-                    "contents": [
-                        {
-                            "type": "box",
-                            "layout": "vertical",
-                            "paddingAll": "8px",
-                            "cornerRadius": "8px",
-                            "backgroundColor": "#5E0B73",
-                            "contents": [
-                                {"type": "text", "text": "Saturday", "size": "xs", "color": "#FFFFFF"},
-                                {"type": "text", "text": sat_date, "size": "xs", "weight": "bold", "color": "#FFFFFF"}
-                            ]
-                        },
-                        {
-                            "type": "box",
-                            "layout": "vertical",
-                            "paddingAll": "8px",
-                            "cornerRadius": "8px",
-                            "backgroundColor": "#B11226",
-                            "contents": [
-                                {"type": "text", "text": "Sunday", "size": "xs", "color": "#FFFFFF"},
-                                {"type": "text", "text": sun_date, "size": "xs", "weight": "bold", "color": "#FFFFFF"}
-                            ]
-                        }
-                    ]
-                },
-
-                {
-                    "type": "text",
-                    "text": "📋 Detail",
-                    "weight": "bold",
-                    "size": "sm",
-                    "margin": "md"
-                },
-
-                {
-                    "type": "box",
-                    "layout": "horizontal",
-                    "spacing": "8px",
-                    "contents": [
-                        {
-                            "type": "box",
-                            "layout": "vertical",
-                            "spacing": "sm",
-                            "flex": 1,
-                            "paddingAll": "8px",
-                            "cornerRadius": "12px",
-                            "backgroundColor": "#5E0B73",
-                            "contents": sat_list if sat_list else [
-                                {"type": "text", "text": "-", "size": "xs", "color": "#FFFFFF"}
-                            ]
-                        },
-                        {
-                            "type": "box",
-                            "layout": "vertical",
-                            "spacing": "sm",
-                            "flex": 1,
-                            "paddingAll": "8px",
-                            "cornerRadius": "12px",
-                            "backgroundColor": "#B11226",
-                            "contents": sun_list if sun_list else [
-                                {"type": "text", "text": "-", "size": "xs", "color": "#FFFFFF"}
-                            ]
-                        }
-                    ]
-                }
-            ]
-        }
-    }
-
-    status, msg = send_to_line(flex_json)
-
-    if status == 200:
-        st.success("✅ ส่งไป LINE OA เรียบร้อย")
     else:
-        st.error(msg)  
+
+        def get_styled_buttons(r, size="sm"):
+
+            btns = []
+
+            if str(r['Phone']).strip():
+
+                btns.append({
+
+                    "type": "box", "layout": "vertical", "backgroundColor": "#00B900", "cornerRadius": "md", "paddingAll": "4px", "flex": 1,
+
+                    "contents": [{"type": "text", "text": "📞 โทร", "color": "#FFFFFF", "align": "center", "weight": "bold", "size": size}],
+
+                    "action": {"type": "uri", "uri": f"tel:{r['Phone'].strip()}"}
+
+                })
+
+            if str(r['LINE']).strip():
+
+                btns.append({
+
+                    "type": "box", "layout": "vertical", "backgroundColor": "#007BFF", "cornerRadius": "md", "paddingAll": "4px", "flex": 1,
+
+                    "contents": [{"type": "text", "text": "💬 ไลน์", "color": "#FFFFFF", "align": "center", "weight": "bold", "size": size}],
+
+                    "action": {"type": "uri", "uri": f"https://line.me/ti/p/~{r['LINE'].strip()}"}
+
+                })
+
+            return {"type": "box", "layout": "horizontal", "margin": "md", "spacing": "sm", "contents": btns} if btns else {"type": "spacer", "size": "xxs"}
+ 
+        if mode == "ส่งข้อมูลวันนี้ (แถบยาว)":
+
+            last_date = df["Date"].max()
+
+            today_df = df[df["Date"] == last_date]
+
+            day_name = today_df["Day"].iloc[0]
+
+            date_obj = datetime.strptime(last_date, "%Y-%m-%d")
+
+            formatted_date = date_obj.strftime("%d %B %Y")
+
+            items = []
+
+            for _, r in today_df.iterrows():
+
+                items.append({
+
+                    "type": "box", "layout": "vertical", "backgroundColor": "#F8F9FA", "paddingAll": "10px", "cornerRadius": "md", "margin": "md",
+
+                    "contents": [
+
+                        {"type": "text", "text": f"📍 {r['Area']} ({r['Group']})", "weight": "bold"},
+
+                        {"type": "text", "text": f"👤 Safety: {r['Safety']}", "margin": "xs", "size": "sm"},
+
+                        get_styled_buttons(r, "sm")
+
+                    ]
+
+                })
+
+            flex_json = {"type": "bubble", "size": "mega", "header": {"type": "box", "layout": "vertical", "backgroundColor": WEEKDAY_COLORS.get(day_name, "#333333"), "contents": [{"type": "text", "text": f"{day_name} {formatted_date}", "color": "#FFFFFF" if day_name != "Monday" else "#000000", "align": "center", "weight": "bold"}]}, "body": {"type": "box", "layout": "vertical", "contents": items}}
+ 
+        else: # Summary Week (ปรับปรุง: เพิ่มวันที่ในคอลัมน์)
+
+            sat_df = df[df["Day"] == "Saturday"]
+
+            sun_df = df[df["Day"] == "Sunday"]
+
+            # ฟอร์แมตวันที่สำหรับหัวคอลัมน์
+
+            sat_date_str = datetime.strptime(sat_df["Date"].iloc[0], "%Y-%m-%d").strftime("%d %b %Y") if not sat_df.empty else ""
+
+            sun_date_str = datetime.strptime(sun_df["Date"].iloc[0], "%Y-%m-%d").strftime("%d %b %Y") if not sun_df.empty else ""
+
+            def create_mini_box(r):
+
+                return {
+
+                    "type": "box", "layout": "vertical", "backgroundColor": "#FFFFFF", "margin": "sm", "paddingAll": "5px", "cornerRadius": "sm",
+
+                    "contents": [
+
+                        {"type": "text", "text": r['Area'], "weight": "bold", "size": "xs"},
+
+                        {"type": "text", "text": r['Safety'], "size": "xxs", "color": "#666666"},
+
+                        get_styled_buttons(r, "xxs")
+
+                    ]
+
+                }
+ 
+            flex_json = {
+
+                "type": "bubble", "size": "giga",
+
+                "header": {"type": "box", "layout": "vertical", "backgroundColor": "#333333", "contents": [{"type": "text", "text": "Summary Week", "color": "#FFFFFF", "weight": "bold", "align": "center"}]},
+
+                "body": {"type": "box", "layout": "horizontal", "spacing": "md", "contents": [
+
+                    {
+
+                        "type": "box", "layout": "vertical", "flex": 1, "backgroundColor": "#5E0B73", "paddingAll": "10px", "cornerRadius": "md",
+
+                        "contents": [
+
+                            {"type": "text", "text": "SATURDAY", "color": "#FFFFFF", "weight": "bold", "align": "center", "size": "sm"},
+
+                            {"type": "text", "text": sat_date_str, "color": "#FFFFFF", "align": "center", "size": "xxs", "margin": "xs"}
+
+                        ] + [create_mini_box(r) for _, r in sat_df.iterrows()]
+
+                    } if not sat_df.empty else {"type": "filler"},
+
+                    {
+
+                        "type": "box", "layout": "vertical", "flex": 1, "backgroundColor": "#B11226", "paddingAll": "10px", "cornerRadius": "md",
+
+                        "contents": [
+
+                            {"type": "text", "text": "SUNDAY", "color": "#FFFFFF", "weight": "bold", "align": "center", "size": "sm"},
+
+                            {"type": "text", "text": sun_date_str, "color": "#FFFFFF", "align": "center", "size": "xxs", "margin": "xs"}
+
+                        ] + [create_mini_box(r) for _, r in sun_df.iterrows()]
+
+                    } if not sun_df.empty else {"type": "filler"}
+
+                ]}
+
+            }
+ 
+        status, response = send_to_line(flex_json)
+
+        if status == 200: st.success("✅ ส่งเข้า LINE สำเร็จ!")
+
+        else: st.error(f"❌ Error: {response}")   
