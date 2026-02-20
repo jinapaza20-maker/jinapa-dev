@@ -6,7 +6,7 @@ from datetime import datetime
 
 # ================= 1. ฟังก์ชันส่ง LINE =================
 def send_to_line(flex_json):
-    TOKEN = "Op7JzHFY4SzJrxz6mjqVx9cAAk8uELFSt4bPoqiXW2LGqUbNCxHCnG6ClgU7WCE2Gwf82ww3lU23mVcEt9RDc6otB7PW4Y8Qu6P1sDmMsKCjIUBhhZsGhOt9nVDyw9G5T+Cn9/7Yng3FVG6bWhw4VQdB04t89/1O/w1cDnyilFU="
+    TOKEN = "NZlkN3wr9g++/8aBrmAG3C5gpgGfAF6xKEteKOgAgySgsWdkEPeKI1fJC+dqzl8au+c4EyLMdok6rPgZcFDW81dWM6CZTL653t6gWTI3gVf0SvQK9d08R5siF+evT/wBQbUgafxJ0PNh+bJm6HRRIAdB04t89/1O/w1cDnyilFU="
     url = "https://api.line.me/v2/bot/message/broadcast"
     headers = {
         "Content-Type": "application/json",
