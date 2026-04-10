@@ -7,7 +7,7 @@ from datetime import datetime, date
 
 # ================= 1. ส่ง LINE =================
 def send_to_line(flex_json, alt_text="Report"):
-    TOKEN = "Op7JzHFY4SzJrxz6mjqVx9cAAk8uELFSt4bPoqiXW2LGqUbNCxHCnG6ClgU7WCE2Gwf82ww3lU23mVcEt9RDc6otB7PW4Y8Qu6P1sDmMsKCjIUBhhZsGhOt9nVDyw9G5T+Cn9/7Yng3FVG6bWhw4VQdB04t89/1O/w1cDnyilFU="
+    TOKEN = "NZlkN3wr9g++/8aBrmAG3C5gpgGfAF6xKEteKOgAgySgsWdkEPeKI1fJC+dqzl8au+c4EyLMdok6rPgZcFDW81dWM6CZTL653t6gWTI3gVf0SvQK9d08R5siF+evT/wBQbUgafxJ0PNh+bJm6HRRIAdB04t89/1O/w1cDnyilFU="+Cn9/7Yng3FVG6bWhw4VQdB04t89/1O/w1cDnyilFU="
     url = "https://api.line.me/v2/bot/message/broadcast"
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {TOKEN}"}
     payload = {"messages": [{"type": "flex", "altText": alt_text, "contents": flex_json}]}
@@ -132,11 +132,21 @@ def build_calendar_bubble(month_df, year, month):
     }
 
 # ================= 3. สร้าง Bubble รายละเอียดวัน (2 คอลัมน์ WG | BP) =================
+# กำหนด order ตายตัว
+WG_ORDER = ["WG1-WG5", "WG2-WG3"]
+BP_ORDER = ["BP1-DET3-WH", "BP2-3", "BP5-RD1", "BP8", "BP9"]
+
 def build_col_items(group_rows):
     """สร้างรายการคนในคอลัมน์ แบบกระชับ ไม่มีไอคอนคน"""
     if not group_rows:
         return [{"type": "text", "text": "ไม่มีข้อมูล",
                  "color": "#AAAAAA", "size": "xxs", "align": "center", "margin": "sm"}]
+# ✅ เรียงตาม order ที่กำหนด
+    order = WG_ORDER if group.upper() == "WG" else BP_ORDER
+    def sort_key(r):
+        area = str(r.get('Area', '')).strip()
+        return order.index(area) if area in order else 999
+ group_rows = sorted(group_rows, key=sort_key)
 
     items = []
     for i, r in enumerate(group_rows):
@@ -181,7 +191,11 @@ def build_col_items(group_rows):
 
         items.append({
             "type": "box", "layout": "vertical",
-            "backgroundColor": "#FFFFFF11", "cornerRadius": "sm",
+            # ✅ เปลี่ยนสีกรอบให้เข้มขึ้น ดูง่ายขึ้น
+            "backgroundColor": "#00000033",
+            "borderColor": "#FFFFFF44",
+            "borderWidth": "1px",
+            "cornerRadius": "sm",
             "paddingAll": "6px", "spacing": "xs",
             "margin": "xs" if i > 0 else "none",
             "contents": row_contents
@@ -216,7 +230,7 @@ def build_day_detail_bubble(day_rows, day_dt):
             {
                 "type": "box", "layout": "vertical",
                 "paddingAll": "8px", "spacing": "none",
-                "contents": build_col_items(wg_rows)
+                "contents": build_col_items(wg_rows, "WG")
             }
         ]
     }
@@ -238,7 +252,7 @@ def build_day_detail_bubble(day_rows, day_dt):
             {
                 "type": "box", "layout": "vertical",
                 "paddingAll": "8px", "spacing": "none",
-                "contents": build_col_items(bp_rows)
+                "contents": build_col_items(bp_rows, "BP")
             }
         ]
     }
