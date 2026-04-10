@@ -288,7 +288,7 @@ with st.form("inspection_form", clear_on_submit=True):
     c1, c2, c3 = st.columns(3)
     with c1:
         group = st.selectbox("Group", ["", "WG", "BP"])
-        area  = st.selectbox("Area", ["", "WG1", "WG2", "WG3", "WG5",
+        area  = st.selectbox("Area", ["", "WG1-WG5", "WG2-WG3",
                                        "BP1-DET3-WH", "BP2-3", "BP5-RD1", "BP8", "BP9"])
     with c2:
         date_val = st.date_input("Inspection Date")
