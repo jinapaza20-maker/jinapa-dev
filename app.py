@@ -34,7 +34,7 @@ WEEKDAY_TEXT = {
 
 # ================= ลำดับ Area =================
 WG_ORDER = ["WG1-WG5", "WG2-WG3"]
-BP_ORDER = ["BP1-DET3-WH", "BP2-3", "BP5-RD1", "BP8", "BP9"]
+BP_ORDER = ["BP1-DET3-WH", "BP2-3", "BP5-RD1", "BP8", "BP9", "External WH"]
 
 # ================= 2. สร้าง Bubble รายละเอียดวัน =================
 def build_col_items(group_rows, group=""):
@@ -189,34 +189,83 @@ else:
     df = pd.DataFrame(columns=["Date", "Day", "Group", "Area", "Safety", "Phone", "LINE"])
 
 # ================= 4. ฟอร์มบันทึก =================
-st.markdown("## 📝 Inspection Entry")
-with st.form("inspection_form", clear_on_submit=True):
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        group = st.selectbox("Group", ["", "WG", "BP"])
-        area  = st.selectbox("Area", ["", "WG1-WG5", "WG2-WG3",
-                                       "BP1-DET3-WH", "BP2-3", "BP5-RD1", "BP8", "BP9"])
-    with c2:
-        date_val = st.date_input("Inspection Date")
-        safety   = st.text_input("Safety Name")
-    with c3:
-        phone    = st.text_input("Phone Number")
-        line_val = st.text_input("LINE ID / Link")
+DRAFT_PATH = "form_draft.json"
 
-    if st.form_submit_button("💾 Save Data", use_container_width=True):
-        if group and area and safety:
-            new_row = {
-                "Date":   date_val.strftime("%Y-%m-%d"),
-                "Day":    date_val.strftime("%A"),
-                "Group":  group, "Area": area, "Safety": safety,
-                "Phone":  phone.strip() if phone else "-",
-                "LINE":   line_val.strip() if line_val else "-"
-            }
-            df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-            df.to_excel(FILE_PATH, index=False)
-            st.rerun()
-        else:
-            st.warning("Please fill in required fields (Group, Area, Safety)")
+def save_draft():
+    draft = {
+        "form_group":  st.session_state.get("form_group", ""),
+        "form_area":   st.session_state.get("form_area", ""),
+        "form_date":   st.session_state.get("form_date", datetime.now().date()).strftime("%Y-%m-%d"),
+        "form_safety": st.session_state.get("form_safety", ""),
+        "form_phone":  st.session_state.get("form_phone", ""),
+        "form_line":   st.session_state.get("form_line", ""),
+    }
+    with open(DRAFT_PATH, "w", encoding="utf-8") as f:
+        json.dump(draft, f, ensure_ascii=False)
+
+def load_draft():
+    if os.path.exists(DRAFT_PATH):
+        with open(DRAFT_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+_draft = load_draft()
+if "form_group"  not in st.session_state: st.session_state["form_group"]  = _draft.get("form_group", "")
+if "form_area"   not in st.session_state: st.session_state["form_area"]   = _draft.get("form_area", "")
+if "form_date"   not in st.session_state:
+    _d = _draft.get("form_date", "")
+    st.session_state["form_date"] = datetime.strptime(_d, "%Y-%m-%d").date() if _d else datetime.now().date()
+if "form_safety" not in st.session_state: st.session_state["form_safety"] = _draft.get("form_safety", "")
+if "form_phone"  not in st.session_state: st.session_state["form_phone"]  = _draft.get("form_phone", "")
+if "form_line"   not in st.session_state: st.session_state["form_line"]   = _draft.get("form_line", "")
+
+AREA_OPTIONS = ["", "WG1-WG5", "WG2-WG3", "BP1-DET3-WH", "BP2-3", "BP5-RD1", "BP8", "BP9", "External WH"]
+
+if st.session_state.get("clear_form"):
+    st.session_state["form_group"]  = ""
+    st.session_state["form_area"]   = ""
+    st.session_state["form_date"]   = datetime.now().date()
+    st.session_state["form_safety"] = ""
+    st.session_state["form_phone"]  = ""
+    st.session_state["form_line"]   = ""
+    st.session_state["clear_form"]  = False
+    if os.path.exists(DRAFT_PATH):
+        os.remove(DRAFT_PATH)
+st.markdown("## 📝 Inspection Entry")
+c1, c2, c3 = st.columns(3)
+with c1:
+    st.selectbox("Group", ["", "WG", "BP"],
+        index=["", "WG", "BP"].index(st.session_state["form_group"])
+              if st.session_state["form_group"] in ["", "WG", "BP"] else 0,
+        key="form_group")
+    st.selectbox("Area", AREA_OPTIONS,
+        index=AREA_OPTIONS.index(st.session_state["form_area"])
+              if st.session_state["form_area"] in AREA_OPTIONS else 0,
+        key="form_area")
+with c2:
+    st.date_input("Inspection Date", key="form_date")
+    st.text_input("Safety Name",     value=st.session_state["form_safety"], key="form_safety")
+with c3:
+    st.text_input("Phone Number",    value=st.session_state["form_phone"], key="form_phone")
+    st.text_input("LINE ID / Link",  value=st.session_state["form_line"],  key="form_line")
+
+if st.button("💾 Save Data", use_container_width=True, type="primary"):
+    if st.session_state["form_group"] and st.session_state["form_area"] and st.session_state["form_safety"]:
+        new_row = {
+            "Date":   st.session_state["form_date"].strftime("%Y-%m-%d"),
+            "Day":    st.session_state["form_date"].strftime("%A"),
+            "Group":  st.session_state["form_group"],
+            "Area":   st.session_state["form_area"],
+            "Safety": st.session_state["form_safety"],
+            "Phone":  st.session_state["form_phone"].strip() if st.session_state["form_phone"] else "-",
+            "LINE":   st.session_state["form_line"].strip()  if st.session_state["form_line"]  else "-",
+        }
+        df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+        df.to_excel(FILE_PATH, index=False)
+        st.session_state["clear_form"] = True
+        st.rerun()
+    else:
+        st.warning("กรุณากรอกข้อมูลที่จำเป็น (Group, Area, Safety)")
 
 # ================= 5. ตารางข้อมูล =================
 st.subheader("📋 Data List")
