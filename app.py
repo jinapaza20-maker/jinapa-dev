@@ -34,7 +34,7 @@ WEEKDAY_TEXT = {
 
 # ================= ลำดับ Area =================
 WG_ORDER = ["WG1-WG5", "WG2-WG3"]
-BP_ORDER = ["BP1-DET3-WH", "BP2-3", "BP5-RD1", "BP10", "External BP", "External WG"]
+BP_ORDER = ["BP1-DET3-WH", "BP2-3", "BP5-RD1", "BP9" "BP10", "External BP", "External WG"]
 
 # ================= 2. สร้าง Bubble รายละเอียดวัน =================
 def build_col_items(group_rows, group=""):
